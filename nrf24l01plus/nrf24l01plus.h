@@ -5,12 +5,11 @@
  *      Author: coder0908
  */
 
-#ifndef __NRF24L01PLUS_DRIVER_H__
-#define __NRF24L01PLUS_DRIVER_H__
+#pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "stm32f4xx_hal.h"
+#include "platform/hal/platform_hal.h"
 
 #define NRF24_MAX_PLD_WIDTH 32
 
@@ -162,10 +161,10 @@ bool nrf24_get_txAddr(struct Nrf24 *rd, uint8_t *tx_addr, uint8_t width);
 bool nrf24_set_rxPldWidth(struct Nrf24 *rd, uint8_t pipe, uint8_t pldWidth);
 bool nrf24_get_rxPldWidth(struct Nrf24 *rd, uint8_t pipe, uint8_t *pldWidth);
 
-bool nrf24_set_DPL(struct Nrf24 *rd, uint8_t pipe, bool en);
-bool nrf24_get_DPL(struct Nrf24 *rd, uint8_t pipe, bool *isEn);
-bool nrf24_en_DPL(struct Nrf24 *rd, bool en);
-bool nrf24_isEn_DPL(struct Nrf24 *rd, bool *en);
+bool nrf24_set_dpl(struct Nrf24 *rd, uint8_t pipe, bool en);
+bool nrf24_get_dpl(struct Nrf24 *rd, uint8_t pipe, bool *isEn);
+bool nrf24_en_dpl(struct Nrf24 *rd, bool en);
+bool nrf24_isEn_dpl(struct Nrf24 *rd, bool *en);
 
 bool nrf24_en_ackPld(struct Nrf24 *rd, bool en);
 bool nrf24_isEn_ackPld(struct Nrf24 *rd, bool *isEn);
@@ -173,6 +172,5 @@ bool nrf24_isEn_ackPld(struct Nrf24 *rd, bool *isEn);
 bool nrf24_en_dynAck(struct Nrf24 *rd, bool en);
 bool nrf24_isEn_dynAck(struct Nrf24 *rd, bool *isEn);
 
-bool nrf24_init_arduinoStyle(struct Nrf24 *rd);
+bool nrf24_set_arduinoStyle(struct Nrf24 *rd);
 
-#endif /* __NRF24L01PLUS_DRIVER_H__*/
