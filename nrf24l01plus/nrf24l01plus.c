@@ -497,22 +497,18 @@ bool nrf24_en_irq(struct Nrf24 *rd, bool rx_dr, bool tx_ds, bool max_rt)
 
 bool nrf24_isEn_irq(struct Nrf24 *rd, bool *rx_dr, bool *tx_ds, bool *max_rt)
 {
+	assert(rx_dr);
+	assert(tx_ds);
+	assert(max_rt);
+
 	uint8_t configReg = 0;
 	bool ret = false;
 
 	ret = nrf24_read_regByte(rd, NRF24_REG_CONFIG, &configReg, 6, 4);
 
-	if (rx_dr) {
-		*rx_dr = !(configReg & _BV(2));
-	}
-
-	if (tx_ds) {
-		*tx_ds = !(configReg & _BV(1));
-	}
-
-	if (max_rt) {
-		*max_rt = !(configReg & _BV(0));
-	}
+	*rx_dr = !(configReg & _BV(2));
+	*tx_ds = !(configReg & _BV(1));
+	*max_rt = !(configReg & _BV(0));
 
 	return ret;
 }
@@ -520,22 +516,19 @@ bool nrf24_isEn_irq(struct Nrf24 *rd, bool *rx_dr, bool *tx_ds, bool *max_rt)
 //if irq asserted, use nrf24_clear_irq()
 bool nrf24_read_irq(struct Nrf24 *rd, bool *rx_dr, bool *tx_ds, bool *max_rt)
 {
+	assert(rx_dr);
+	assert(tx_ds);
+	assert(max_rt);
+
 	uint8_t configReg = 0;
 	bool ret = false;
 
 	ret = nrf24_read_regByte(rd, NRF24_REG_STATUS, &configReg, 6, 4);
 
-	if (rx_dr) {
-		*rx_dr = configReg & _BV(2);
-	}
+	*rx_dr = configReg & _BV(2);
+	*tx_ds = configReg & _BV(1);
+	*max_rt = configReg & _BV(0);
 
-	if (tx_ds) {
-		*tx_ds = configReg & _BV(1);
-	}
-
-	if (max_rt) {
-		*max_rt = configReg & _BV(0);
-	}
 
 	return ret;
 }
@@ -627,7 +620,9 @@ bool nrf24_get_crcLen(struct Nrf24 *rd, uint8_t *crcLen)
 
 bool nrf24_en_power(struct Nrf24 *rd, bool en)
 {
-	return nrf24_write_regBit(rd, NRF24_REG_CONFIG, en, 1);
+	bool ret = nrf24_write_regBit(rd, NRF24_REG_CONFIG, en, 1);
+	HAL_Delay(2);
+	return ret;
 }
 
 bool nrf24_isEn_power(struct Nrf24 *rd, bool *isEn)
@@ -1009,25 +1004,25 @@ bool nrf24_get_rxPldWidth(struct Nrf24 *rd, uint8_t pipe, uint8_t *pldWidth)
 }
 
 //requirement: nrf24_en_auto_ack
-bool nrf24_set_DPL(struct Nrf24 *rd, uint8_t pipe, bool en)
+bool nrf24_set_dpl(struct Nrf24 *rd, uint8_t pipe, bool en)
 {
 	assert(pipe <= 5);
 	return nrf24_write_regBit(rd, NRF24_REG_DYNPD, en, pipe);
 }
 
-bool nrf24_get_DPL(struct Nrf24 *rd, uint8_t pipe, bool *isEn)
+bool nrf24_get_dpl(struct Nrf24 *rd, uint8_t pipe, bool *isEn)
 {
 	assert(pipe <= 5);
 	return nrf24_read_regBit(rd, NRF24_REG_DYNPD, isEn, pipe);
 
 }
 
-bool nrf24_en_DPL(struct Nrf24 *rd, bool en)
+bool nrf24_en_dpl(struct Nrf24 *rd, bool en)
 {
 	return nrf24_write_regBit(rd, NRF24_REG_FEATURE, en, 2);
 }
 
-bool nrf24_isEn_DPL(struct Nrf24 *rd, bool *isEn)
+bool nrf24_isEn_dpl(struct Nrf24 *rd, bool *isEn)
 {
 	return nrf24_read_regBit(rd, NRF24_REG_FEATURE, isEn, 2);
 }
@@ -1055,79 +1050,96 @@ bool nrf24_isEn_dynAck(struct Nrf24 *rd, bool *isEn)
 }
 
 
-bool nrf24_init_arduinoStyle(struct Nrf24 *rd)
+bool nrf24_set_arduinoStyle(struct Nrf24 *rd)
 {
 	bool ret = false;
 
 	ret = nrf24_set_arc(rd, 15);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_set_ard(rd, 250 * 5);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_set_dataRate(rd, NRF24_1MBPS);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_en_ackPld(rd, false);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_en_DPL(rd, false);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_en_dynAck(rd, false);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	for (int i = 0; i < 6; i++) {
 		ret = nrf24_set_DPL(rd, i, false);
-		if (!ret)
-			return ret;
+		if (!ret) {
+			return false;
+		}
 	}
 	for (int i = 0; i < 6; i++) {
 		ret = nrf24_en_autoAck(rd, i, true);
-		if (!ret)
-			return ret;
+		if (!ret) {
+			return false;
+		}
 	}
 
 	ret = nrf24_en_rxAddr(rd, 0, true);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_en_rxAddr(rd, 1, true);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < 6; i++) {
 		ret = nrf24_set_rxPldWidth(rd, i, 32);
+	}
 
 	ret = nrf24_set_addrWidth(rd, 5);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_set_channel(rd, 2476);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
-	ret = nrf24_clear_irq(rd, true, true, true);
-	if (!ret)
-		return ret;
+	ret = nrf24_clear_irq(rd, false, false, false);
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_flush_txBuf(rd);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_flush_rxBuf(rd);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
 	ret = nrf24_set_crcLen(rd, 2);
-	if (!ret)
-		return ret;
+	if (!ret) {
+		return false;
+	}
 
-	return ret;
+	return true;
 }
