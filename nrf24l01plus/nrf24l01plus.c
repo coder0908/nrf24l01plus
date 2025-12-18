@@ -6,7 +6,7 @@
  */
 
 
-#include "nrf24l01plus_driver.h"
+#include "nrf24l01plus.h"
 #include <assert.h>
 
 #define _BV(bit) (1 << bit)
