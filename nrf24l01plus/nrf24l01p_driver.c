@@ -1,13 +1,12 @@
 /*
- * nrf24l01plus.c
+ * nrf24l01p_driver.c
  *
  *  Created on: Apr 26, 2025
  *      Author: coder0908
  */
 
-
-#include "nrf24l01plus.h"
 #include <assert.h>
+#include "nrf24l01p_driver.h"
 
 #define _BV(bit) (1 << bit)
 
@@ -96,7 +95,6 @@ static bool nrf24_read_spi(struct Nrf24 *rd, uint8_t reg, uint8_t *buf, uint16_t
 //ex) if you want to write 0bxxddddxx, data = 0bdddd, moreSigBitIdx = 5, lessSigBitIdx = 2
 static bool nrf24_write_regByte(struct Nrf24 *rd, uint8_t reg, uint8_t data, uint8_t moreSigBitIdx, uint8_t lessSigBitIdx)
 {
-	bool ret = false;
 	uint8_t mask = 0;
 	uint8_t tmpReg = 0;
 
@@ -110,9 +108,8 @@ static bool nrf24_write_regByte(struct Nrf24 *rd, uint8_t reg, uint8_t data, uin
 	data <<= lessSigBitIdx;
 	data &= mask;
 
-	ret = nrf24_read_spi(rd, reg, &tmpReg, 1, NULL);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_spi(rd, reg, &tmpReg, 1, NULL)) {
+		return false;
 	}
 
 	tmpReg &= ~mask;
@@ -124,7 +121,6 @@ static bool nrf24_write_regByte(struct Nrf24 *rd, uint8_t reg, uint8_t data, uin
 //ex) if moreSigBitIdx = 5 and lessSigBitIdx = 3, then data = (0bxxdddxxx >> lessSigBitIdx)
 static bool nrf24_read_regByte(struct Nrf24 *rd, uint8_t reg, uint8_t *data, uint8_t moreSigBitIdx, uint8_t lessSigBitIdx)
 {
-	bool ret = false;
 	uint8_t mask = 0;
 	uint8_t tmpReg = 0;
 
@@ -137,8 +133,7 @@ static bool nrf24_read_regByte(struct Nrf24 *rd, uint8_t reg, uint8_t *data, uin
 		mask |= _BV(i);
 	}
 
-	ret = nrf24_read_spi(rd, reg, &tmpReg, 1, NULL);
-	if (!ret ) {
+	if (!nrf24_read_spi(rd, reg, &tmpReg, 1, NULL)) {
 		return false;
 	}
 
@@ -147,19 +142,17 @@ static bool nrf24_read_regByte(struct Nrf24 *rd, uint8_t reg, uint8_t *data, uin
 
 	*data = tmpReg;
 
-	return ret;
+	return true;
 }
 
 static bool nrf24_write_regBit(struct Nrf24 *rd, uint8_t reg, bool en, uint8_t bitIdx)
 {
-	bool ret = false;
 	uint8_t tmpReg = 0;
 
 	assert(bitIdx <= 7);
 
-	ret = nrf24_read_spi(rd, reg, &tmpReg, 1, NULL);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_spi(rd, reg, &tmpReg, 1, NULL)) {
+		return false;
 	}
 
 	tmpReg &= ~(1 << bitIdx);
@@ -170,20 +163,18 @@ static bool nrf24_write_regBit(struct Nrf24 *rd, uint8_t reg, bool en, uint8_t b
 
 static bool nrf24_read_regBit(struct Nrf24 *rd, uint8_t reg, bool *isEn, uint8_t bitIdx)
 {
-	bool ret = false;
 	uint8_t tmpReg = 0;
 
 	assert(bitIdx <= 7);
 	assert((isEn));
 
-	ret = nrf24_read_spi(rd, reg, &tmpReg, 1, NULL);
-	if (!ret) {
+	if (!nrf24_read_spi(rd, reg, &tmpReg, 1, NULL)) {
 		return false;
 	}
 
 	*isEn = tmpReg & _BV(bitIdx);
 
-	return ret;
+	return true;
 }
 
 bool nrf24_init(struct Nrf24 *rd, SPI_HandleTypeDef *hspi, GPIO_TypeDef *cePort, uint16_t cePin, GPIO_TypeDef *csPort, uint16_t csPin)
@@ -212,13 +203,11 @@ bool nrf24_init(struct Nrf24 *rd, SPI_HandleTypeDef *hspi, GPIO_TypeDef *cePort,
 bool nrf24_begin(struct Nrf24 *rd)
 {
 	bool isRx;
-	bool ret = false;
 	uint8_t statusReg;
 
 
-	ret = nrf24_get_pmode(rd, &isRx);
-	if (!ret) {
-		return ret;
+	if (!nrf24_get_pmode(rd, &isRx)) {
+		return false;
 	}
 
 	if (isRx) {
@@ -229,7 +218,10 @@ bool nrf24_begin(struct Nrf24 *rd)
 	nrf24_flush_txBuf(rd);
 	nrf24_clear_irq(rd, true, true, true);
 
-	ret = nrf24_read_status(rd, &statusReg);
+	if (!nrf24_read_status(rd, &statusReg)) {
+		return false;
+	}
+
 	if (statusReg != 14) {
 		return false;
 	}
@@ -239,11 +231,8 @@ bool nrf24_begin(struct Nrf24 *rd)
 
 bool nrf24_deinit(struct Nrf24 *rd)
 {
-	bool ret = false;
-
-	ret = nrf24_en_power(rd, false);
-	if (!ret) {
-		return ret;
+	if (!nrf24_en_power(rd, false)) {
+		return false;
 	}
 
 	dis_ce(rd);
@@ -407,7 +396,7 @@ bool nrf24_read_pldWidth(struct Nrf24 *rd, uint8_t *pldWidth)
 	HAL_StatusTypeDef spiStatus = HAL_ERROR;
 	const uint8_t reg = NRF24_CMD_R_RX_PL_WID;
 
-	assert((rd));
+	assert(rd);
 	assert(pldWidth);
 
 	en_cs(rd);
@@ -535,51 +524,40 @@ bool nrf24_read_irq(struct Nrf24 *rd, bool *rx_dr, bool *tx_ds, bool *max_rt)
 
 bool nrf24_clear_irq(struct Nrf24 *rd, bool rx_dr, bool tx_ds, bool max_rt)
 {
-	bool ret = false;
-
-	ret = nrf24_write_regBit(rd, NRF24_REG_STATUS, rx_dr, 6);
-	if (!ret) {
-		return ret;
+	if (!nrf24_write_regBit(rd, NRF24_REG_STATUS, rx_dr, 6)) {
+		return false;
 	}
 
-	ret = nrf24_write_regBit(rd, NRF24_REG_STATUS, tx_ds, 5);
-	if (!ret) {
-		return ret;
+	if (!nrf24_write_regBit(rd, NRF24_REG_STATUS, tx_ds, 5)) {
+		return false;
 	}
 
 	return nrf24_write_regBit(rd, NRF24_REG_STATUS, max_rt, 4);
-
 }
 
 bool nrf24_set_crcLen(struct Nrf24 *rd, uint8_t crcLen)
 {
-	bool ret = false;
 
 	switch(crcLen) {
 	case 1:
-		ret = nrf24_write_regBit(rd, NRF24_REG_CONFIG, true, 3);
-		if (!ret) {
-			return ret;
+		if (!nrf24_write_regBit(rd, NRF24_REG_CONFIG, true, 3)) {
+			return false;
 		}
-		ret = nrf24_write_regBit(rd, NRF24_REG_CONFIG, false, 2);
-		if (!ret) {
-			return ret;
+		if (!nrf24_write_regBit(rd, NRF24_REG_CONFIG, false, 2)) {
+			return false;
 		}
 		break;
 	case 2:
-		ret = nrf24_write_regBit(rd, NRF24_REG_CONFIG, true, 3);
-		if (!ret) {
-			return ret;
+		if (!nrf24_write_regBit(rd, NRF24_REG_CONFIG, true, 3)) {
+			return false;
 		}
-		ret = nrf24_write_regBit(rd, NRF24_REG_CONFIG, true, 2);
-		if (!ret) {
-			return ret;
+		if (!nrf24_write_regBit(rd, NRF24_REG_CONFIG, true, 2)) {
+			return false;
 		}
 		break;
 	case 0:
-		ret = nrf24_write_regBit(rd, NRF24_REG_CONFIG, false, 3);
-		if (!ret) {
-			return ret;
+		if (!nrf24_write_regBit(rd, NRF24_REG_CONFIG, false, 3)) {
+			return false;
 		}
 		break;
 	default:
@@ -591,20 +569,17 @@ bool nrf24_set_crcLen(struct Nrf24 *rd, uint8_t crcLen)
 
 bool nrf24_get_crcLen(struct Nrf24 *rd, uint8_t *crcLen)
 {
-	bool ret = false;
 	bool isEn_crc;
 	bool is_crcLen2byte;
 
 	assert(crcLen);
 
-	ret = nrf24_read_regBit(rd, NRF24_REG_CONFIG, &isEn_crc, 3);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_regBit(rd, NRF24_REG_CONFIG, &isEn_crc, 3)) {
+		return false;
 	}
 
-	ret = nrf24_read_regBit(rd, NRF24_REG_CONFIG, &is_crcLen2byte, 2);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_regBit(rd, NRF24_REG_CONFIG, &is_crcLen2byte, 2)) {
+		return false;
 	}
 
 	if (!isEn_crc) {
@@ -615,7 +590,7 @@ bool nrf24_get_crcLen(struct Nrf24 *rd, uint8_t *crcLen)
 		*crcLen = 1;
 	}
 
-	return ret;
+	return true;
 }
 
 bool nrf24_en_power(struct Nrf24 *rd, bool en)
@@ -672,12 +647,9 @@ bool nrf24_set_addrWidth(struct Nrf24 *rd, uint8_t addrWidth)
 
 bool nrf24_get_addrWidth(struct Nrf24 *rd, uint8_t *addrWidth)
 {
-	bool ret = false;
-
 	assert(addrWidth);
 
-	ret = nrf24_read_regByte(rd, NRF24_REG_SETUP_AW, addrWidth, 1, 0);
-	if (!ret ) {
+	if (!nrf24_read_regByte(rd, NRF24_REG_SETUP_AW, addrWidth, 1, 0)) {
 		return false;
 	}
 	
@@ -686,7 +658,7 @@ bool nrf24_get_addrWidth(struct Nrf24 *rd, uint8_t *addrWidth)
 		return false;
 	}
 
-	return ret;
+	return true;
 }
 
 bool nrf24_set_ard(struct Nrf24 *rd, uint16_t ard)
@@ -701,14 +673,12 @@ bool nrf24_set_ard(struct Nrf24 *rd, uint16_t ard)
 
 bool nrf24_get_ard(struct Nrf24 *rd, uint16_t *ard)
 {
-	bool ret = false;
 	uint8_t tmp = 0;
 
 	assert(ard);
 
-	ret = nrf24_read_regByte(rd, NRF24_REG_SETUP_RETR, &tmp, 7, 4);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_regByte(rd, NRF24_REG_SETUP_RETR, &tmp, 7, 4)) {
+		return false;
 	}
 
 	*ard = tmp;
@@ -719,7 +689,7 @@ bool nrf24_get_ard(struct Nrf24 *rd, uint16_t *ard)
 		return false;
 	}
 
-	return ret;
+	return true;
 }
 
 bool nrf24_set_arc(struct Nrf24 *rd, uint8_t arc)
@@ -730,18 +700,17 @@ bool nrf24_set_arc(struct Nrf24 *rd, uint8_t arc)
 
 bool nrf24_get_arc(struct Nrf24 *rd, uint8_t *arc)
 {
-	bool ret = false;
+	assert(arc);
 
-	ret = nrf24_read_regByte(rd, NRF24_REG_SETUP_RETR, arc, 3, 0);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_regByte(rd, NRF24_REG_SETUP_RETR, arc, 3, 0)) {
+		return false;
 	}
 
 	if (*arc > 15) {
 		return false;
 	}
 
-	return ret;
+	return true;
 }
 
 bool nrf24_set_channel(struct Nrf24 *rd, uint16_t mhz)
@@ -752,14 +721,12 @@ bool nrf24_set_channel(struct Nrf24 *rd, uint16_t mhz)
 
 bool nrf24_get_channel(struct Nrf24 *rd, uint16_t *mhz)
 {
-	bool ret = false;
 	uint8_t tmp = 0;
 
 	assert(mhz);
 
-	ret = nrf24_read_regByte(rd, NRF24_REG_RF_CH, &tmp, 6, 0);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_regByte(rd, NRF24_REG_RF_CH, &tmp, 6, 0)) {
+		return false;
 	}
 
 	*mhz = tmp;
@@ -768,21 +735,17 @@ bool nrf24_get_channel(struct Nrf24 *rd, uint16_t *mhz)
 	if (*mhz < 2400 || *mhz > 2525)
 		return false;
 
-	return ret;
+	return true;
 }
 
 bool nrf24_set_dataRate(struct Nrf24 *rd, enum Nrf24_DataRate dataRate)
 {
-	bool ret = false;
-
-	ret = nrf24_write_regBit(rd, NRF24_REG_RF_SETUP, false, 5);
-	if (!ret) {
-		return ret;
+	if (!nrf24_write_regBit(rd, NRF24_REG_RF_SETUP, false, 5)) {
+		return false;
 	}
 
-	ret = nrf24_write_regBit(rd, NRF24_REG_RF_SETUP, false, 3);
-	if (!ret) {
-		return ret;
+	if (!nrf24_write_regBit(rd, NRF24_REG_RF_SETUP, false, 3)) {
+		return false;
 	}
 
 	if (dataRate == NRF24_2MBPS) {
@@ -793,28 +756,23 @@ bool nrf24_set_dataRate(struct Nrf24 *rd, enum Nrf24_DataRate dataRate)
 		return false;
 	}
 
-	return ret;
-
+	return true;
 }
 
 bool nrf24_get_dataRate(struct Nrf24 *rd, enum Nrf24_DataRate *dataRate)
 {
-	bool ret = false;
 	bool lowBit = 0;
 	bool highBit = 0;
 
 	assert(dataRate);
 
-	ret = nrf24_read_regBit(rd, NRF24_REG_RF_SETUP, &lowBit, 5);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_regBit(rd, NRF24_REG_RF_SETUP, &lowBit, 5)) {
+		return false;
 	}
 
-	ret = nrf24_read_regBit(rd, NRF24_REG_RF_SETUP, &highBit, 3);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_regBit(rd, NRF24_REG_RF_SETUP, &highBit, 3)) {
+		return false;
 	}
-
 
 	if (lowBit && highBit) {
 		return false;
@@ -826,7 +784,7 @@ bool nrf24_get_dataRate(struct Nrf24 *rd, enum Nrf24_DataRate *dataRate)
 		*dataRate = NRF24_1MBPS;
 	}
 
-	return ret;
+	return true;
 }
 
 bool nrf24_set_paPower(struct Nrf24 *rd, enum Nrf24_PaPower paPower)
@@ -841,18 +799,17 @@ bool nrf24_get_paPower(struct Nrf24 *rd, enum Nrf24_PaPower *paPower)
 
 bool nrf24_read_pipeNum(struct Nrf24 *rd, uint8_t *pipe)
 {
-	bool ret = false;
+	assert(pipe);
 
-	ret = nrf24_read_regByte(rd, NRF24_REG_STATUS, pipe, 3, 1);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_regByte(rd, NRF24_REG_STATUS, pipe, 3, 1)) {
+		return false;
 	}
 
 	if (*pipe > 5) {
 		return false;
 	}
 
-	return ret;
+	return true;
 }
 
 bool nrf24_is_txBufFull(struct Nrf24 *rd, bool *is_full)
@@ -943,8 +900,6 @@ bool nrf24_set_rxAddr(struct Nrf24 *rd, uint8_t pipe, uint8_t *rxAddr, uint8_t w
 
 bool nrf24_get_rxAddr(struct Nrf24 *rd, uint8_t pipe, uint8_t *rxAddr, uint8_t width)
 {
-	bool ret = false;
-
 	assert(width >= 3 && width <= 5);
 	assert(pipe <= 5);
 
@@ -952,16 +907,15 @@ bool nrf24_get_rxAddr(struct Nrf24 *rd, uint8_t pipe, uint8_t *rxAddr, uint8_t w
 		return nrf24_read_spi(rd, NRF24_REG_RX_ADDR_P0, rxAddr, width, NULL);
 	}
 
-	ret = nrf24_read_spi(rd, NRF24_REG_RX_ADDR_P1, rxAddr, width, NULL);
-	if (!ret) {
-		return ret;
+	if (!nrf24_read_spi(rd, NRF24_REG_RX_ADDR_P1, rxAddr, width, NULL)) {
+		return false;
 	}
 
 	if (pipe != 1) {
-		ret = nrf24_read_spi(rd, NRF24_REG_RX_ADDR_P0 + pipe, rxAddr, 1, NULL);
+		return nrf24_read_spi(rd, NRF24_REG_RX_ADDR_P0 + pipe, rxAddr, 1, NULL);
 	}
 
-	return ret;
+	return true;
 }
 
 bool nrf24_set_txAddr(struct Nrf24 *rd, uint8_t *txAddr, uint8_t width)
@@ -1052,92 +1006,77 @@ bool nrf24_isEn_dynAck(struct Nrf24 *rd, bool *isEn)
 
 bool nrf24_set_arduinoStyle(struct Nrf24 *rd)
 {
-	bool ret = false;
 
-	ret = nrf24_set_arc(rd, 15);
-	if (!ret) {
+	if (!nrf24_set_arc(rd, 15)) {
 		return false;
 	}
 
-	ret = nrf24_set_ard(rd, 250 * 5);
-	if (!ret) {
+	if (!nrf24_set_ard(rd, 250 * 5)) {
 		return false;
 	}
 
-	ret = nrf24_set_dataRate(rd, NRF24_1MBPS);
-	if (!ret) {
+	if (!nrf24_set_dataRate(rd, NRF24_1MBPS)) {
 		return false;
 	}
 
-	ret = nrf24_en_ackPld(rd, false);
-	if (!ret) {
+	if (!nrf24_en_ackPld(rd, false)) {
 		return false;
 	}
 
-	ret = nrf24_en_DPL(rd, false);
-	if (!ret) {
+	if (!nrf24_en_dpl(rd, false)) {
 		return false;
 	}
 
-	ret = nrf24_en_dynAck(rd, false);
-	if (!ret) {
+	if (!nrf24_en_dynAck(rd, false)) {
 		return false;
 	}
 
 	for (int i = 0; i < 6; i++) {
-		ret = nrf24_set_DPL(rd, i, false);
-		if (!ret) {
+		if (!nrf24_set_dpl(rd, i, false)) {
 			return false;
 		}
 	}
 	for (int i = 0; i < 6; i++) {
-		ret = nrf24_en_autoAck(rd, i, true);
-		if (!ret) {
+		if (!nrf24_en_autoAck(rd, i, true)) {
 			return false;
 		}
 	}
 
-	ret = nrf24_en_rxAddr(rd, 0, true);
-	if (!ret) {
+	if (!nrf24_en_rxAddr(rd, 0, true)) {
 		return false;
 	}
 
-	ret = nrf24_en_rxAddr(rd, 1, true);
-	if (!ret) {
+	if (!nrf24_en_rxAddr(rd, 1, true)) {
 		return false;
 	}
 
 	for (int i = 0; i < 6; i++) {
-		ret = nrf24_set_rxPldWidth(rd, i, 32);
+		if (!nrf24_set_rxPldWidth(rd, i, 32)) {
+			return false;
+		}
 	}
 
-	ret = nrf24_set_addrWidth(rd, 5);
-	if (!ret) {
+	if (!nrf24_set_addrWidth(rd, 5)) {
 		return false;
 	}
 
-	ret = nrf24_set_channel(rd, 2476);
-	if (!ret) {
+	if (!nrf24_set_channel(rd, 2476)) {
 		return false;
 	}
 
-	ret = nrf24_clear_irq(rd, false, false, false);
-	if (!ret) {
+	if (!nrf24_clear_irq(rd, false, false, false)) {
 		return false;
 	}
 
-	ret = nrf24_flush_txBuf(rd);
-	if (!ret) {
+	if (!nrf24_flush_txBuf(rd)) {
 		return false;
 	}
 
-	ret = nrf24_flush_rxBuf(rd);
-	if (!ret) {
+	if (!nrf24_flush_rxBuf(rd)) {
 		return false;
 	}
 
-	ret = nrf24_set_crcLen(rd, 2);
-	if (!ret) {
+	if (!nrf24_set_crcLen(rd, 2)) {
 		return false;
 	}
 
