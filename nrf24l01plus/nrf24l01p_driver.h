@@ -13,9 +13,6 @@
 
 #define DRV_NRF24L01P_MAX_PLD_WIDTH 32
 
-
-
-
 struct drv_nrf24l01p {
 	GPIO_TypeDef 	*cePort;
 	uint16_t  	cePin;
@@ -42,8 +39,6 @@ enum drv_nrf24l01p_data_rate {
 	DRV_NRF24L01P_2MBPS,
 	DRV_NRF24L01P_250KBPS
 };
-
-
 
 bool drv_nrf24l01p_init(struct drv_nrf24l01p *rd, SPI_HandleTypeDef *hspi, GPIO_TypeDef *cePort, uint16_t cePin, GPIO_TypeDef *csPort, uint16_t csPin);
 bool drv_nrf24l01p_deinit(struct drv_nrf24l01p *rd);
