@@ -11,51 +11,12 @@
 #include <stdbool.h>
 #include "stm32f4xx_hal.h"
 
-#define NRF24_MAX_PLD_WIDTH 32
-
-/*COMMAND*/
-#define NRF24_CMD_R_REGISTER		0b00011111
-#define NRF24_CMD_W_REGISTER		0b00100000
-#define NRF24_CMD_R_RX_PAYLOAD		0b01100001
-#define NRF24_CMD_W_TX_PAYLOAD		0b10100000
-#define NRF24_CMD_FLUSH_TX		0b11100001
-#define NRF24_CMD_FLUSH_RX		0b11100010
-#define NRF24_CMD_REUSE_TX_PL		0b11100011
-#define NRF24_CMD_R_RX_PL_WID		0b01100000
-#define NRF24_CMD_W_ACK_PAYLOAD		0b10101000
-#define NRF24_CMD_W_TX_PAYLOAD_NOACK	0b10110000
-#define NRF24_CMD_NOP			0xff
-
-/*REGISTER*/
-#define NRF24_REG_CONFIG		0x00
-#define NRF24_REG_EN_AA			0x01
-#define NRF24_REG_EN_RXADDR		0x02
-#define NRF24_REG_SETUP_AW		0x03
-#define NRF24_REG_SETUP_RETR		0x04
-#define NRF24_REG_RF_CH			0x05
-#define NRF24_REG_RF_SETUP		0x06
-#define NRF24_REG_STATUS		0x07
-#define NRF24_REG_OBSERVE_TX		0x08
-#define NRF24_REG_RPD			0x09
-#define NRF24_REG_RX_ADDR_P0		0x0A
-#define NRF24_REG_RX_ADDR_P1		0x0B
-#define NRF24_REG_RX_ADDR_P2		0x0C
-#define NRF24_REG_RX_ADDR_P3		0x0D
-#define NRF24_REG_RX_ADDR_P4		0x0E
-#define NRF24_REG_RX_ADDR_P5		0x0F
-#define NRF24_REG_TX_ADDR		0x10
-#define NRF24_REG_RX_PW_P0		0x11
-#define NRF24_REG_RX_PW_P1		0x12
-#define NRF24_REG_RX_PW_P2		0x13
-#define NRF24_REG_RX_PW_P3		0x14
-#define NRF24_REG_RX_PW_P4		0x15
-#define NRF24_REG_RX_PW_P5		0x16
-#define NRF24_REG_FIFO_STATUS		0x17
-#define NRF24_REG_DYNPD			0x1C
-#define NRF24_REG_FEATURE		0x1D
+#define DRV_NRF24L01P_MAX_PLD_WIDTH 32
 
 
-struct Nrf24 {
+
+
+struct drv_nrf24l01p {
 	GPIO_TypeDef 	*cePort;
 	uint16_t  	cePin;
 
@@ -69,108 +30,107 @@ struct Nrf24 {
 	uint8_t nopBuf[32];
 };
 
-enum Nrf24_PaPower {
-	NRF24_PA_M18DBM = 0,
-	NRF24_PA_M12DBM,
-	NRF24_PA_M6DBM,
-	NRF24_PA_0DBM
+enum drv_nrf24l01p_pa_power {
+	DRV_NRF24L01P_PA_M18DBM = 0,
+	DRV_NRF24L01P_PA_M12DBM,
+	DRV_NRF24L01P_PA_M6DBM,
+	DRV_NRF24L01P_PA_0DBM
 };
 
-enum Nrf24_DataRate {
-	NRF24_1MBPS = 0,
-	NRF24_2MBPS,
-	NRF24_250KBPS
+enum drv_nrf24l01p_data_rate {
+	DRV_NRF24L01P_1MBPS = 0,
+	DRV_NRF24L01P_2MBPS,
+	DRV_NRF24L01P_250KBPS
 };
 
 
 
-bool nrf24_init(struct Nrf24 *rd, SPI_HandleTypeDef *hspi, GPIO_TypeDef *cePort, uint16_t cePin, GPIO_TypeDef *csPort, uint16_t csPin);
-bool nrf24_deinit(struct Nrf24 *rd);
+bool drv_nrf24l01p_init(struct drv_nrf24l01p *rd, SPI_HandleTypeDef *hspi, GPIO_TypeDef *cePort, uint16_t cePin, GPIO_TypeDef *csPort, uint16_t csPin);
+bool drv_nrf24l01p_deinit(struct drv_nrf24l01p *rd);
 
-bool nrf24_begin(struct Nrf24 *rd);
+bool drv_nrf24l01p_begin(struct drv_nrf24l01p *rd);
 
-bool nrf24_write_txPld(struct Nrf24 *rd, uint8_t *txPld, uint16_t size);
-bool nrf24_read_rxPld(struct Nrf24 *rd, uint8_t *rxPld, uint16_t size);
-bool nrf24_write_txPldNoAck(struct Nrf24 *rd, uint8_t *txPld, uint16_t size);
-bool nrf24_write_ackPld(struct Nrf24 *rd, uint8_t pipe, const uint8_t *ackPld, uint8_t size);
+bool drv_nrf24l01p_write_txPld(struct drv_nrf24l01p *rd, uint8_t *txPld, uint16_t size);
+bool drv_nrf24l01p_read_rxPld(struct drv_nrf24l01p *rd, uint8_t *rxPld, uint16_t size);
+bool drv_nrf24l01p_write_txPldNoAck(struct drv_nrf24l01p *rd, uint8_t *txPld, uint16_t size);
+bool drv_nrf24l01p_write_ackPld(struct drv_nrf24l01p *rd, uint8_t pipe, const uint8_t *ackPld, uint8_t size);
 
-bool nrf24_reuse_txPld(struct Nrf24 *rd);
+bool drv_nrf24l01p_reuse_txPld(struct drv_nrf24l01p *rd);
 
-bool nrf24_read_pldWidth(struct Nrf24 *rd, uint8_t *pldWidth);
-bool nrf24_read_status(struct Nrf24 *rd, uint8_t *status);
+bool drv_nrf24l01p_read_pldWidth(struct drv_nrf24l01p *rd, uint8_t *pldWidth);
+bool drv_nrf24l01p_read_status(struct drv_nrf24l01p *rd, uint8_t *status);
 
-bool nrf24_flush_txBuf(struct Nrf24 *rd);
-bool nrf24_flush_rxBuf(struct Nrf24 *rd);
+bool drv_nrf24l01p_flush_txBuf(struct drv_nrf24l01p *rd);
+bool drv_nrf24l01p_flush_rxBuf(struct drv_nrf24l01p *rd);
 
-bool nrf24_en_irq(struct Nrf24 *rd, bool rx_dr, bool tx_ds, bool max_rt);
-bool nrf24_isEn_irq(struct Nrf24 *rd, bool *rx_dr, bool *tx_ds, bool *max_rt);
+bool drv_nrf24l01p_en_irq(struct drv_nrf24l01p *rd, bool rx_dr, bool tx_ds, bool max_rt);
+bool drv_nrf24l01p_isEn_irq(struct drv_nrf24l01p *rd, bool *rx_dr, bool *tx_ds, bool *max_rt);
 
-bool nrf24_read_irq(struct Nrf24 *rd, bool *rx_dr, bool *tx_ds, bool *max_rt);
-bool nrf24_clear_irq(struct Nrf24 *rd, bool rx_dr, bool tx_ds, bool max_rt);
+bool drv_nrf24l01p_read_irq(struct drv_nrf24l01p *rd, bool *rx_dr, bool *tx_ds, bool *max_rt);
+bool drv_nrf24l01p_clear_irq(struct drv_nrf24l01p *rd, bool rx_dr, bool tx_ds, bool max_rt);
 
-bool nrf24_set_crcLen(struct Nrf24 *rd, uint8_t crcLen);
-bool nrf24_get_crcLen(struct Nrf24 *rd, uint8_t *crcLen);
+bool drv_nrf24l01p_set_crcLen(struct drv_nrf24l01p *rd, uint8_t crcLen);
+bool drv_nrf24l01p_get_crcLen(struct drv_nrf24l01p *rd, uint8_t *crcLen);
 
-bool nrf24_en_power(struct Nrf24 *rd, bool en);
-bool nrf24_isEn_power(struct Nrf24 *rd, bool *isEn);
+bool drv_nrf24l01p_en_power(struct drv_nrf24l01p *rd, bool en);
+bool drv_nrf24l01p_isEn_power(struct drv_nrf24l01p *rd, bool *isEn);
 
-bool nrf24_set_pmode(struct Nrf24 *rd, bool isRx);
-bool nrf24_get_pmode(struct Nrf24 *rd, bool *isRx);
+bool drv_nrf24l01p_set_pmode(struct drv_nrf24l01p *rd, bool isRx);
+bool drv_nrf24l01p_get_pmode(struct drv_nrf24l01p *rd, bool *isRx);
 
-bool nrf24_en_autoAck(struct Nrf24 *rd, uint8_t pipe, bool en);
-bool nrf24_isEn_autoAck(struct Nrf24 *rd, uint8_t pipe, bool *isEn);
+bool drv_nrf24l01p_en_autoAck(struct drv_nrf24l01p *rd, uint8_t pipe, bool en);
+bool drv_nrf24l01p_isEn_autoAck(struct drv_nrf24l01p *rd, uint8_t pipe, bool *isEn);
 
-bool nrf24_en_rxAddr(struct Nrf24 *rd, uint8_t pipe, bool en);
-bool nrf24_isEn_rxAddr(struct Nrf24 *rd, uint8_t pipe, bool *isEn);
+bool drv_nrf24l01p_en_rxAddr(struct drv_nrf24l01p *rd, uint8_t pipe, bool en);
+bool drv_nrf24l01p_isEn_rxAddr(struct drv_nrf24l01p *rd, uint8_t pipe, bool *isEn);
 
-bool nrf24_set_addrWidth(struct Nrf24 *rd, uint8_t addrWidth);
-bool nrf24_get_addrWidth(struct Nrf24 *rd, uint8_t *addrWidth);
+bool drv_nrf24l01p_set_addrWidth(struct drv_nrf24l01p *rd, uint8_t addrWidth);
+bool drv_nrf24l01p_get_addrWidth(struct drv_nrf24l01p *rd, uint8_t *addrWidth);
 
-bool nrf24_set_ard(struct Nrf24 *rd, uint16_t ard);
-bool nrf24_get_ard(struct Nrf24 *rd, uint16_t *ard);
+bool drv_nrf24l01p_set_ard(struct drv_nrf24l01p *rd, uint16_t ard);
+bool drv_nrf24l01p_get_ard(struct drv_nrf24l01p *rd, uint16_t *ard);
 
-bool nrf24_set_arc(struct Nrf24 *rd, uint8_t arc);
-bool nrf24_get_arc(struct Nrf24 *rd, uint8_t *arc);
+bool drv_nrf24l01p_set_arc(struct drv_nrf24l01p *rd, uint8_t arc);
+bool drv_nrf24l01p_get_arc(struct drv_nrf24l01p *rd, uint8_t *arc);
 
-bool nrf24_set_channel(struct Nrf24 *rd, uint16_t mhz);
-bool nrf24_get_channel(struct Nrf24 *rd, uint16_t *mhz);
+bool drv_nrf24l01p_set_channel(struct drv_nrf24l01p *rd, uint16_t mhz);
+bool drv_nrf24l01p_get_channel(struct drv_nrf24l01p *rd, uint16_t *mhz);
 
-bool nrf24_set_dataRate(struct Nrf24 *rd, enum Nrf24_DataRate dataRate);
-bool nrf24_get_dataRate(struct Nrf24 *rd, enum Nrf24_DataRate *dataRate);
+bool drv_nrf24l01p_set_dataRate(struct drv_nrf24l01p *rd, enum drv_nrf24l01p_data_rate dataRate);
+bool drv_nrf24l01p_get_dataRate(struct drv_nrf24l01p *rd, enum drv_nrf24l01p_data_rate *dataRate);
 
-bool nrf24_set_paPower(struct Nrf24 *rd, enum Nrf24_PaPower paPower);
-bool nrf24_get_paPower(struct Nrf24 *rd, enum Nrf24_PaPower *paPower);
+bool drv_nrf24l01p_set_paPower(struct drv_nrf24l01p *rd, enum drv_nrf24l01p_pa_power paPower);
+bool drv_nrf24l01p_get_paPower(struct drv_nrf24l01p *rd, enum drv_nrf24l01p_pa_power *paPower);
 
-bool nrf24_read_pipeNum(struct Nrf24 *rd, uint8_t *pipe);
+bool drv_nrf24l01p_read_pipeNum(struct drv_nrf24l01p *rd, uint8_t *pipe);
 
-bool nrf24_is_txBufFull(struct Nrf24 *rd, bool *isFull);
-bool nrf24_is_rxBufFull(struct Nrf24 *rd, bool *isFull);	
+bool drv_nrf24l01p_is_txBufFull(struct drv_nrf24l01p *rd, bool *isFull);
+bool drv_nrf24l01p_is_rxBufFull(struct drv_nrf24l01p *rd, bool *isFull);
 
-bool nrf24_is_rxBufEmpty(struct Nrf24 *rd, bool *isEmpty);
-bool nrf24_is_txBufEmpty(struct Nrf24 *rd, bool *isEmpty);
+bool drv_nrf24l01p_is_rxBufEmpty(struct drv_nrf24l01p *rd, bool *isEmpty);
+bool drv_nrf24l01p_is_txBufEmpty(struct drv_nrf24l01p *rd, bool *isEmpty);
 
-bool nrf24_read_plosCnt(struct Nrf24 *rd, uint8_t *plosCnt);
-bool nrf24_read_arc(struct Nrf24 *rd, uint8_t *arc);
+bool drv_nrf24l01p_read_plosCnt(struct drv_nrf24l01p *rd, uint8_t *plosCnt);
+bool drv_nrf24l01p_read_arc(struct drv_nrf24l01p *rd, uint8_t *arc);
 
-bool nrf24_set_rxAddr(struct Nrf24 *rd, uint8_t pipe, uint8_t *rxAddr, uint8_t width);
-bool nrf24_get_rxAddr(struct Nrf24 *rd, uint8_t pipe, uint8_t *rxAddr, uint8_t width);
+bool drv_nrf24l01p_set_rxAddr(struct drv_nrf24l01p *rd, uint8_t pipe, uint8_t *rxAddr, uint8_t width);
+bool drv_nrf24l01p_get_rxAddr(struct drv_nrf24l01p *rd, uint8_t pipe, uint8_t *rxAddr, uint8_t width);
 
-bool nrf24_set_txAddr(struct Nrf24 *rd, uint8_t *tx_addr, uint8_t width);
-bool nrf24_get_txAddr(struct Nrf24 *rd, uint8_t *tx_addr, uint8_t width);
+bool drv_nrf24l01p_set_txAddr(struct drv_nrf24l01p *rd, uint8_t *tx_addr, uint8_t width);
+bool drv_nrf24l01p_get_txAddr(struct drv_nrf24l01p *rd, uint8_t *tx_addr, uint8_t width);
 
-bool nrf24_set_rxPldWidth(struct Nrf24 *rd, uint8_t pipe, uint8_t pldWidth);
-bool nrf24_get_rxPldWidth(struct Nrf24 *rd, uint8_t pipe, uint8_t *pldWidth);
+bool drv_nrf24l01p_set_rxPldWidth(struct drv_nrf24l01p *rd, uint8_t pipe, uint8_t pldWidth);
+bool drv_nrf24l01p_get_rxPldWidth(struct drv_nrf24l01p *rd, uint8_t pipe, uint8_t *pldWidth);
 
-bool nrf24_set_dpl(struct Nrf24 *rd, uint8_t pipe, bool en);
-bool nrf24_get_dpl(struct Nrf24 *rd, uint8_t pipe, bool *isEn);
-bool nrf24_en_dpl(struct Nrf24 *rd, bool en);
-bool nrf24_isEn_dpl(struct Nrf24 *rd, bool *en);
+bool drv_nrf24l01p_set_dpl(struct drv_nrf24l01p *rd, uint8_t pipe, bool en);
+bool drv_nrf24l01p_get_dpl(struct drv_nrf24l01p *rd, uint8_t pipe, bool *isEn);
+bool drv_nrf24l01p_en_dpl(struct drv_nrf24l01p *rd, bool en);
+bool drv_nrf24l01p_isEn_dpl(struct drv_nrf24l01p *rd, bool *en);
 
-bool nrf24_en_ackPld(struct Nrf24 *rd, bool en);
-bool nrf24_isEn_ackPld(struct Nrf24 *rd, bool *isEn);
+bool drv_nrf24l01p_en_ackPld(struct drv_nrf24l01p *rd, bool en);
+bool drv_nrf24l01p_isEn_ackPld(struct drv_nrf24l01p *rd, bool *isEn);
 
-bool nrf24_en_dynAck(struct Nrf24 *rd, bool en);
-bool nrf24_isEn_dynAck(struct Nrf24 *rd, bool *isEn);
+bool drv_nrf24l01p_en_dynAck(struct drv_nrf24l01p *rd, bool en);
+bool drv_nrf24l01p_isEn_dynAck(struct drv_nrf24l01p *rd, bool *isEn);
 
-bool nrf24_set_arduinoStyle(struct Nrf24 *rd);
-
+bool drv_nrf24l01p_set_arduinoStyle(struct drv_nrf24l01p *rd);
