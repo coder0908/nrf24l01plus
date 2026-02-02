@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "platform/hal/platform_hal.h"
+#include "stm32f4xx_hal.h"
 
 #define NRF24_MAX_PLD_WIDTH 32
 
